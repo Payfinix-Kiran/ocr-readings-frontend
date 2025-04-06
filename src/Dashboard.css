@@ -267,3 +267,44 @@ a[target='_blank']:after {
   color: #555;
   z-index: 999;      /* Ensure it's above other content */
 }
+
+/* Pagination Styles */
+.pagination {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  padding: 0;
+  margin-top: 20px;
+}
+
+.page-item {
+  margin: 0 5px;
+}
+
+.page-item a {
+  display: flex; /* Use flexbox for centering content */
+  justify-content: center;
+  align-items: center;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #337ab7;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.page-item a:hover {
+  background-color: #eee;
+}
+
+.page-item.active a {
+  background-color: #337ab7;
+  color: #fff;
+  border-color: #337ab7;
+}
+
+.page-item:first-child a,
+.page-item:last-child a {
+  padding: 8px 10px; /* Adjust padding for "Previous" and "Next" buttons */
+}

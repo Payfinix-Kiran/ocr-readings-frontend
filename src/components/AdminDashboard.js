@@ -1,7 +1,8 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { uploadImages } from "../api";
-import "../Dashboard.css"; // Ensure your CSS is linked!
+import "../Dashboard.css";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
 
 export default function Dashboard() {
   const [file, setFile] = useState(null);
@@ -9,8 +10,16 @@ export default function Dashboard() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalImage, setModalImage] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const imagesPerPage = 12; // Images per page
+  const [totalPages, setTotalPages] = useState(1);
   const [processedCount, setProcessedCount] = useState(0);
   const [totalImages, setTotalImages] = useState(0);
+
+  useEffect(() => {
+    // Update totalPages whenever images changes
+    setTotalPages(Math.ceil(images.length / imagesPerPage));
+  }, [images, imagesPerPage]);
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
@@ -24,10 +33,26 @@ export default function Dashboard() {
     if (!file) return alert("Please select a ZIP file first");
 
     setLoading(true);
+    setProcessedCount(0);
+    setTotalImages(0);
+
     const formData = new FormData();
     formData.append("file", file);
 
     try {
+      // First, analyze ZIP to get image count (without reading image data)
+      const zip = new JSZip();
+      const zipFile = await zip.loadAsync(file);
+      const imageFiles = [];
+
+      zipFile.forEach((relativePath, zipEntry) => {
+        if (!zipEntry.dir && /\.(png|jpg|jpeg|gif)$/i.test(relativePath)) {
+          imageFiles.push(relativePath); // Only store the names
+        }
+      });
+
+      setTotalImages(imageFiles.length);
+
       const response = await uploadImages(formData, "upload-images");
       const apiData = await response?.data;
       console.log(apiData);
@@ -39,7 +64,7 @@ export default function Dashboard() {
       setLoading(false);
       setProcessedCount(0);
       setTotalImages(0);
-      setFile(null); // Clear the file input
+      setFile(null);
     }
   };
 
@@ -47,6 +72,9 @@ export default function Dashboard() {
     if (!singleImage) return alert("Please select an image first");
 
     setLoading(true);
+    setProcessedCount(0);
+    setTotalImages(1); // Single image
+
     const formData = new FormData();
     formData.append("file", singleImage);
 
@@ -60,10 +88,10 @@ export default function Dashboard() {
       alert("Upload failed. Please check your file and try again.");
     } finally {
       setLoading(false);
-      setSingleImage(null); // Clear the single image input
+      setSingleImage(null);
     }
   };
-  
+
   const closeModal = () => {
     console.log("closeModal function called"); // Debugging
     setModalImage(null);
@@ -75,12 +103,17 @@ export default function Dashboard() {
     setFile(null);
     setSingleImage(null);
     setImages([]);
+    setCurrentPage(1); // Also reset current page
     setProcessedCount(0);
     setTotalImages(0);
   };
 
   function formatConfidence(confidence) {
-    if (confidence === null || confidence === undefined || confidence === "NOT_FOUND") {
+    if (
+      confidence === null ||
+      confidence === undefined ||
+      confidence === "NOT_FOUND"
+    ) {
       return "N/A"; // Or some other placeholder
     }
     const percentage = (confidence * 100).toFixed(2); // Multiply by 100 and round to 2 decimal places
@@ -93,9 +126,13 @@ export default function Dashboard() {
         "Image URL": image.image_url,
         "Serial Number Reading": image.serial_number_result.reading,
         "Meter Reading 1": image.ocr_reading_result_1.reading_1,
-        "Confidence Score 1": formatConfidence(image.ocr_reading_result_1.confidence_1),
+        "Confidence Score 1": formatConfidence(
+          image.ocr_reading_result_1.confidence_1
+        ),
         "Meter Reading 2": image.ocr_reading_result_1.reading_2,
-        "Confidence Score 2": formatConfidence(image.ocr_reading_result_1.confidence_2),
+        "Confidence Score 2": formatConfidence(
+          image.ocr_reading_result_1.confidence_2
+        ),
         "Spoof Confidence Score": image.spoof_result.confidence_score,
         "Spoof Result": image.spoof_result.result,
         "Spoof Reason": image.spoof_result.reason,
@@ -113,6 +150,14 @@ export default function Dashboard() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Image Analysis Results");
     XLSX.writeFile(workbook, "image_analysis_results.xlsx");
   };
+
+  // Get current images
+  const indexOfLastImage = currentPage * imagesPerPage;
+  const indexOfFirstImage = indexOfLastImage - imagesPerPage;
+  const currentImages = images.slice(indexOfFirstImage, indexOfLastImage);
+
+  // Change page
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
     <div className="dashboard-container">
@@ -148,8 +193,8 @@ export default function Dashboard() {
           )}
         </button>
 
-         {/* Single Image Upload */}
-         <label htmlFor="single-image-upload" className="custom-file-upload">
+        {/* Single Image Upload */}
+        <label htmlFor="single-image-upload" className="custom-file-upload">
           <i className="fas fa-upload"></i> Choose Image
         </label>
         <input
@@ -159,7 +204,9 @@ export default function Dashboard() {
           onChange={handleSingleImageChange}
           className="file-input"
         />
-        {singleImage && <span className="file-name">Selected: {singleImage.name}</span>}
+        {singleImage && (
+          <span className="file-name">Selected: {singleImage.name}</span>
+        )}
         <button
           onClick={handleSingleImageUpload}
           disabled={loading || !singleImage}
@@ -173,20 +220,21 @@ export default function Dashboard() {
             <span>Upload Image</span>
           )}
         </button>
-           {/* Clear Button */}
-           <button
-              onClick={handleClearData}
-              className="clear-button"
-            >
-              <span>Clear</span>
-            </button>
+        {/* Clear Button */}
+        <button onClick={handleClearData} className="clear-button">
+          <span>Clear</span>
+        </button>
       </section>
 
-      {/* {loading && (totalImages > 0) && (
-        <div className="processing-message">
-          Processing image {processedCount} of {totalImages}...
+      {loading && totalImages > 0 && (
+        <div className="modal">
+          <div className="modal-content">
+            <div className="modal-message">
+              Images are processing please wait...
+            </div>
+          </div>
         </div>
-      )} */}
+      )}
 
       {modalImage && (
         <div className="modal">
@@ -206,23 +254,28 @@ export default function Dashboard() {
       <section className="results-section">
         <h2 className="uploaded-title">Analysis Results</h2>
         {images.length > 0 && (
-         <>
-         <button className="download-button" onClick={downloadExcel}>
-           <i className="fas fa-download"></i> Download Excel
-         </button>
-         <br/>
-         {/* <button className="download-button" onClick={downloadPdf}>
+          <>
+            <button className="download-button" onClick={downloadExcel}>
+              <i className="fas fa-download"></i> Download Excel
+            </button>
+            <br />
+            {/* <button className="download-button" onClick={downloadPdf}>
            <i className="fas fa-file-pdf"></i> Download PDF
          </button> */}
-       </>
+          </>
         )}
 
         <div className="image-grid">
           {images.length === 0 ? (
             <p className="no-images">No images uploaded yet.</p>
           ) : (
-            images.map((image) => (
-              <div key={image.image_url || "singleImage"} className="image-card">  {/* Dynamic Key */}
+            currentImages.map((image) => (
+              <div
+                key={image.image_url || "singleImage"}
+                className="image-card"
+              >
+                {" "}
+                {/* Dynamic Key */}
                 <img
                   src={image.image_url}
                   alt="Uploaded"
@@ -264,7 +317,67 @@ export default function Dashboard() {
             ))
           )}
         </div>
+        <Pagination
+          imagesPerPage={imagesPerPage}
+          totalImages={images.length}
+          paginate={paginate}
+          currentPage={currentPage}
+          totalPages={totalPages} // Pass totalPages
+        />
       </section>
     </div>
   );
 }
+
+const Pagination = ({
+  imagesPerPage,
+  totalImages,
+  paginate,
+  currentPage,
+  totalPages,
+}) => {
+  const pageNumbers = [];
+
+  for (let i = 1; i <= Math.ceil(totalImages / imagesPerPage); i++) {
+    pageNumbers.push(i);
+  }
+
+  return (
+    <nav>
+      <ul className="pagination">
+        <li className="page-item">
+          <a
+            onClick={() =>
+              paginate(currentPage > 1 ? currentPage - 1 : currentPage)
+            }
+            href="#"
+            className="page-link"
+          >
+            Previous
+          </a>
+        </li>
+        {pageNumbers.map((number) => (
+          <li
+            key={number}
+            className={`page-item ${currentPage === number ? "active" : ""}`}
+          >
+            <a onClick={() => paginate(number)} href="#" className="page-link">
+              {number}
+            </a>
+          </li>
+        ))}
+        <li className="page-item">
+          <a
+            onClick={() =>
+              paginate(currentPage < totalPages ? currentPage + 1 : currentPage)
+            }
+            href="#"
+            className="page-link"
+          >
+            Next
+          </a>
+        </li>
+      </ul>
+    </nav>
+  );
+};
