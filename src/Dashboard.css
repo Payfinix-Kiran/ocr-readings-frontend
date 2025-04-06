@@ -1,0 +1,269 @@
+/* General Styles */
+body {
+  font-family: sans-serif;
+  background-color: #f4f4f4;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Header Styles */
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 2em;
+  color: #2c3e50;
+}
+
+.dashboard-header p {
+  color: #777;
+  font-style: italic;
+}
+
+/* Upload Section Styles */
+.upload-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.custom-file-upload {
+  border: 1px solid #ccc;
+  display: inline-block;
+  padding: 8px 15px;
+  cursor: pointer;
+  background-color: #eee;
+  border-radius: 4px;
+  color: #555;
+}
+
+.custom-file-upload:hover {
+  background-color: #ddd;
+}
+
+.file-input {
+  display: none; /* Hide the actual file input */
+}
+
+.file-name {
+  color: #555;
+}
+
+.upload-button {
+  background-color: #4CAF50; /* Green */
+  border: none;
+  color: white;
+  padding: 8px 15px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.clear-button {
+  background-color: #0f5dbd; /* Green */
+  border: none;
+  color: white;
+  padding: 8px 15px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.clear-button:hover {
+  background-color: #0f5dbd;
+}
+
+.clear-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+html
+a[target='_blank']:after {
+    content: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNKM90AAAAJUlEQVR42mJ8uvLxwAmYGJgEdgJjAwdjEQJbAcZgQ4gFwRhAACZMAlQC0IYVAAAAAElFTkSuQmCC);
+    margin: 0 0 0 5px;
+}
+
+.upload-button:hover {
+  background-color: #3e8e41;
+}
+
+.upload-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  position: relative; /* For close button positioning */
+  max-width: 90%;
+  max-height: 90%;
+  overflow: auto; /* Enable scrolling if content is too large */
+}
+
+.close-modal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #555;
+}
+
+.zoomed-image {
+  max-width: 100%;
+  max-height: 80vh; /* Limit the image height */
+  display: block; /* Remove extra space below image */
+  margin: 0 auto; /* Center the image */
+}
+
+/* Results Section Styles */
+.results-section {
+  margin-top: 20px;
+}
+
+.close-modal:hover {
+  color: #f44336;
+}
+
+.uploaded-title {
+  font-size: 1.5em;
+  margin-bottom: 15px;
+  color: #34495e;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 images per row */
+  gap: 15px;
+  padding: 15px;
+}
+
+.image-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+  width: 100%;
+  height: auto;           /* Remove fixed height */
+  display: flex;           /* Use flexbox for layout */
+  flex-direction: column;  /* Stack image and details */
+}
+
+.image-card:hover {
+  transform: translateY(-5px);
+}
+
+.image-thumbnail {
+  width: 100%;
+  height: 300px;          /* Set a fixed height for all images */
+  object-fit: fill;   /* Ensure image fits without cropping */
+  cursor: pointer;
+  display: block;
+}
+
+.image-details {
+  padding: 10px;
+}
+
+.image-details p {
+  margin: 5px 0;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.image-details .detail-label {
+  font-weight: bold;
+  color: #444;
+  margin-right: 5px;
+}
+
+.no-images {
+  text-align: center;
+  color: #777;
+  font-style: italic;
+}
+
+.download-button {
+  background-color: #007bff; /* Blue */
+  border: none;
+  color: white;
+  padding: 8px 15px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  margin-bottom: 15px;
+}
+
+.download-button:hover {
+  background-color: #0056b3;
+}
+
+.download-button.pdf {
+  background-color: #dc3545; /* Red */
+}
+
+.download-button.pdf:hover {
+  background-color: #c82333;
+}
+
+.processing-message {
+  text-align: center;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-top: 1px solid #ddd;
+  position: fixed;   /* Or absolute, depending on your layout */
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  font-size: 0.9em;
+  color: #555;
+  z-index: 999;      /* Ensure it's above other content */
+}
