@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { uploadImages } from "../api";
 import "../Dashboard.css";
 import * as XLSX from "xlsx";
@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [processedCount, setProcessedCount] = useState(0);
   const [totalImages, setTotalImages] = useState(0);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     // Update totalPages whenever images changes
@@ -35,35 +36,58 @@ export default function Dashboard() {
     setLoading(true);
     setProcessedCount(0);
     setTotalImages(0);
-
-    const formData = new FormData();
-    formData.append("file", file);
+    setImages([]); // Clear previous results
 
     try {
-      // First, analyze ZIP to get image count (without reading image data)
       const zip = new JSZip();
       const zipFile = await zip.loadAsync(file);
       const imageFiles = [];
 
       zipFile.forEach((relativePath, zipEntry) => {
         if (!zipEntry.dir && /\.(png|jpg|jpeg|gif)$/i.test(relativePath)) {
-          imageFiles.push(relativePath); // Only store the names
+          imageFiles.push(zipEntry);
         }
       });
 
       setTotalImages(imageFiles.length);
 
-      const response = await uploadImages(formData, "upload-images");
-      const apiData = await response?.data;
-      console.log(apiData);
-      setImages(apiData.results);
+      // Split into chunks of 12
+      const chunkSize = 12;
+      const chunks = [];
+      for (let i = 0; i < imageFiles.length; i += chunkSize) {
+        chunks.push(imageFiles.slice(i, i + chunkSize));
+      }
+
+      // Upload each mini-ZIP chunk
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
+
+        const chunkZip = new JSZip();
+        chunk.forEach((entry) => {
+          chunkZip.file(entry.name, entry.async("blob"));
+        });
+
+        const blobContent = await chunkZip.generateAsync({ type: "blob" });
+        const chunkFormData = new FormData();
+        const chunkFileName = `chunk_${chunkIndex + 1}.zip`;
+        chunkFormData.append(
+          "file",
+          new File([blobContent], chunkFileName, { type: "application/zip" })
+        );
+
+        const response = await uploadImages(chunkFormData, "upload-images");
+        const chunkResults = (await response?.data?.results) || [];
+
+        setImages((prev) => [...prev, ...chunkResults]);
+        setProcessedCount((prev) => prev + chunk.length); // Append results
+      }
     } catch (error) {
       console.error("Error uploading file:", error);
       alert("Upload failed. Please check your file and try again.");
     } finally {
       setLoading(false);
-      setProcessedCount(0);
-      setTotalImages(0);
+      // setProcessedCount(0);
+      // setTotalImages(0);
       setFile(null);
     }
   };
@@ -106,6 +130,10 @@ export default function Dashboard() {
     setCurrentPage(1); // Also reset current page
     setProcessedCount(0);
     setTotalImages(0);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   function formatConfidence(confidence) {
@@ -124,16 +152,31 @@ export default function Dashboard() {
     const excelData = images.map((image) => {
       return {
         "Image URL": image.image_url,
-        "Serial Number Reading": image.serial_number_result.reading,
-        "Meter Reading 1": image.ocr_reading_result_1.reading_1,
-        "Confidence Score 1": formatConfidence(
-          image.ocr_reading_result_1.confidence_1
-        ),
-        "Meter Reading 2": image.ocr_reading_result_2.reading_2,
-        "Confidence Score 2": formatConfidence(
-          image.ocr_reading_result_2.confidence_2
-        ),
-        "Parameter Detected": image.ocr_reading_result_2.label,
+        "Serial Number Reading":
+          image.serial_number_result.reading === "NOT_FOUND"
+            ? ""
+            : image.serial_number_result.reading,
+        "Meter Reading 1":
+          image.ocr_reading_result_1.reading_1 === "NOT_FOUND"
+            ? ""
+            : image.ocr_reading_result_1.reading_1,
+        "Confidence Score 1":
+          image.ocr_reading_result_1.confidence_1 === "N/A"
+            ? ""
+            : image.ocr_reading_result_1.confidence_1,
+        "Meter Reading 2":
+          image.ocr_reading_result_2.reading_2 === "NOT_FOUND"
+            ? ""
+            : image.ocr_reading_result_2.reading_2,
+        "Confidence Score 2":
+          image.ocr_reading_result_2.confidence_2 === "NOT_FOUND"
+            ? ""
+            : image.ocr_reading_result_2.confidence_2,
+        "Parameter Detected":
+          image.ocr_reading_result_2.label === "UNKNOWN" ||
+          image.ocr_reading_result_2.label === ""
+            ? ""
+            : image.ocr_reading_result_2.label,
         "Spoof Confidence Score": image.spoof_result.confidence_score,
         "Spoof Result": image.spoof_result.result,
         "Spoof Reason": image.spoof_result.reason,
@@ -178,6 +221,7 @@ export default function Dashboard() {
           accept=".zip"
           onChange={handleFileChange}
           className="file-input"
+          ref={fileInputRef}
         />
         {file && <span className="file-name">Selected: {file.name}</span>}
         <button
@@ -225,9 +269,21 @@ export default function Dashboard() {
         <button onClick={handleClearData} className="clear-button">
           <span>Clear</span>
         </button>
+
+        {images.length > 0 && images.length === totalImages && (
+          <>
+            <button className="download-button" onClick={downloadExcel}>
+              <i className="fas fa-download"></i> Download Excel
+            </button>
+            <br />
+            {/* <button className="download-button" onClick={downloadPdf}>
+       <i className="fas fa-file-pdf"></i> Download PDF
+     </button> */}
+          </>
+        )}
       </section>
 
-      {loading && totalImages > 0 && (
+      {/* {loading && totalImages > 0 && (
         <div className="modal">
           <div className="modal-content">
             <div className="modal-message">
@@ -235,7 +291,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {modalImage && (
         <div className="modal">
@@ -254,16 +310,18 @@ export default function Dashboard() {
 
       <section className="results-section">
         <h2 className="uploaded-title">Analysis Results</h2>
-        {images.length > 0 && (
-          <>
-            <button className="download-button" onClick={downloadExcel}>
-              <i className="fas fa-download"></i> Download Excel
-            </button>
-            <br />
-            {/* <button className="download-button" onClick={downloadPdf}>
-           <i className="fas fa-file-pdf"></i> Download PDF
-         </button> */}
-          </>
+
+        {totalImages > 0 && (
+          <div className="processed-count">
+            {processedCount < totalImages ? (
+              <span>
+                Processing {totalImages - processedCount} image
+                {totalImages - processedCount > 1 ? "s" : ""} please wait...
+              </span>
+            ) : (
+              <span>Finalized {totalImages} images</span>
+            )}
+          </div>
         )}
 
         <div className="image-grid">
@@ -287,31 +345,44 @@ export default function Dashboard() {
                   {/* Meter Reading */}
                   <p>
                     <span className="detail-label">Meter Reading 1:</span>{" "}
-                    {image.ocr_reading_result_1.reading_1} (
-                    {formatConfidence(image.ocr_reading_result_1.confidence_1)})
+                    {image.ocr_reading_result_1.reading_1 !== "NOT_FOUND" &&
+                    formatConfidence(
+                      image.ocr_reading_result_1.confidence_1
+                    ) !== "N/A"
+                      ? `${
+                          image.ocr_reading_result_1.reading_1
+                        } (${formatConfidence(
+                          image.ocr_reading_result_1.confidence_1
+                        )})`
+                      : ""}
                   </p>
+
                   <p>
                     <span className="detail-label">Meter Reading 2:</span>{" "}
-                    {image.ocr_reading_result_2.reading_2} (
-                    {formatConfidence(image.ocr_reading_result_2.confidence_2)})
+                    {image.ocr_reading_result_2.reading_2 !== "NOT_FOUND" &&
+                    formatConfidence(
+                      image.ocr_reading_result_2.confidence_2
+                    ) !== "N/A"
+                      ? `${
+                          image.ocr_reading_result_2.reading_2
+                        } (${formatConfidence(
+                          image.ocr_reading_result_2.confidence_2
+                        )})`
+                      : ""}
                   </p>
 
                   {/* Meter Serial Number */}
                   <p>
                     <span className="detail-label">Parameter:</span>{" "}
-                    {image.ocr_reading_result_2.label}
-                    {image.ocr_reading_result_2.label
-                      ? null
-                      : " (Not Found)"}{" "}
-                    {/* Conditionally show "Not Found" */}
+                    {image.ocr_reading_result_2.label !== "UNKNOWN"
+                      ? image.ocr_reading_result_2.label
+                      : ""}
                   </p>
                   <p>
                     <span className="detail-label">Meter Serial:</span>{" "}
-                    {image.serial_number_result.reading}
-                    {image.serial_number_result.reading
-                      ? null
-                      : " (Not Found)"}{" "}
-                    {/* Conditionally show "Not Found" */}
+                    {image.serial_number_result.reading !== "NOT_FOUND"
+                      ? image.serial_number_result.reading
+                      : ""}
                   </p>
 
                   {/* Is Image a Spoof */}
@@ -333,6 +404,12 @@ export default function Dashboard() {
           currentPage={currentPage}
           totalPages={totalPages} // Pass totalPages
         />
+
+        {images.length > 0 && (
+          <div className="processed-count">
+            Processed {processedCount} of {totalImages} images
+          </div>
+        )}
       </section>
     </div>
   );

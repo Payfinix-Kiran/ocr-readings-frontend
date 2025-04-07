@@ -66,7 +66,7 @@ body {
 }
 
 .upload-button {
-  background-color: #4CAF50; /* Green */
+  background-color: #4caf50; /* Green */
   border: none;
   color: white;
   padding: 8px 15px;
@@ -80,7 +80,7 @@ body {
 }
 
 .clear-button {
-  background-color: #0f5dbd; /* Green */
+  background-color: #d76060; /* Green */
   border: none;
   color: white;
   padding: 8px 15px;
@@ -94,17 +94,16 @@ body {
 }
 
 .clear-button:hover {
-  background-color: #0f5dbd;
+  background-color: #af314f;
 }
 
 .clear-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
 }
-html
-a[target='_blank']:after {
-    content: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNKM90AAAAJUlEQVR42mJ8uvLxwAmYGJgEdgJjAwdjEQJbAcZgQ4gFwRhAACZMAlQC0IYVAAAAAElFTkSuQmCC);
-    margin: 0 0 0 5px;
+html a[target="_blank"]:after {
+  content: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNKM90AAAAJUlEQVR42mJ8uvLxwAmYGJgEdgJjAwdjEQJbAcZgQ4gFwRhAACZMAlQC0IYVAAAAAElFTkSuQmCC);
+  margin: 0 0 0 5px;
 }
 
 .upload-button:hover {
@@ -188,9 +187,9 @@ a[target='_blank']:after {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
   width: 100%;
-  height: auto;           /* Remove fixed height */
-  display: flex;           /* Use flexbox for layout */
-  flex-direction: column;  /* Stack image and details */
+  height: auto; /* Remove fixed height */
+  display: flex; /* Use flexbox for layout */
+  flex-direction: column; /* Stack image and details */
 }
 
 .image-card:hover {
@@ -199,8 +198,8 @@ a[target='_blank']:after {
 
 .image-thumbnail {
   width: 100%;
-  height: 300px;          /* Set a fixed height for all images */
-  object-fit: fill;   /* Ensure image fits without cropping */
+  height: 300px; /* Set a fixed height for all images */
+  object-fit: fill; /* Ensure image fits without cropping */
   cursor: pointer;
   display: block;
 }
@@ -239,7 +238,7 @@ a[target='_blank']:after {
   cursor: pointer;
   border-radius: 4px;
   transition: background-color 0.3s;
-  margin-bottom: 15px;
+  /* margin-bottom: 15px; */
 }
 
 .download-button:hover {
@@ -259,13 +258,13 @@ a[target='_blank']:after {
   padding: 10px;
   background-color: #f0f0f0;
   border-top: 1px solid #ddd;
-  position: fixed;   /* Or absolute, depending on your layout */
+  position: fixed; /* Or absolute, depending on your layout */
   bottom: 0;
   left: 0;
   width: 100%;
   font-size: 0.9em;
   color: #555;
-  z-index: 999;      /* Ensure it's above other content */
+  z-index: 999; /* Ensure it's above other content */
 }
 
 /* Pagination Styles */
@@ -296,6 +295,13 @@ a[target='_blank']:after {
 
 .page-item a:hover {
   background-color: #eee;
+}
+
+.processed-count {
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: #2c3e50;
 }
 
 .page-item.active a {
