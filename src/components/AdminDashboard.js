@@ -129,10 +129,11 @@ export default function Dashboard() {
         "Confidence Score 1": formatConfidence(
           image.ocr_reading_result_1.confidence_1
         ),
-        "Meter Reading 2": image.ocr_reading_result_1.reading_2,
+        "Meter Reading 2": image.ocr_reading_result_2.reading_2,
         "Confidence Score 2": formatConfidence(
-          image.ocr_reading_result_1.confidence_2
+          image.ocr_reading_result_2.confidence_2
         ),
+        "Parameter Detected": image.ocr_reading_result_2.label,
         "Spoof Confidence Score": image.spoof_result.confidence_score,
         "Spoof Result": image.spoof_result.result,
         "Spoof Reason": image.spoof_result.reason,
@@ -289,13 +290,21 @@ export default function Dashboard() {
                     {image.ocr_reading_result_1.reading_1} (
                     {formatConfidence(image.ocr_reading_result_1.confidence_1)})
                   </p>
-                  {/* <p>
+                  <p>
                     <span className="detail-label">Meter Reading 2:</span>{" "}
-                    {image.ocr_reading_result.reading_2} (
-                    {formatConfidence(image.ocr_reading_result.confidence_2)})
-                  </p> */}
+                    {image.ocr_reading_result_2.reading_2} (
+                    {formatConfidence(image.ocr_reading_result_2.confidence_2)})
+                  </p>
 
                   {/* Meter Serial Number */}
+                  <p>
+                    <span className="detail-label">Parameter:</span>{" "}
+                    {image.ocr_reading_result_2.label}
+                    {image.ocr_reading_result_2.label
+                      ? null
+                      : " (Not Found)"}{" "}
+                    {/* Conditionally show "Not Found" */}
+                  </p>
                   <p>
                     <span className="detail-label">Meter Serial:</span>{" "}
                     {image.serial_number_result.reading}
