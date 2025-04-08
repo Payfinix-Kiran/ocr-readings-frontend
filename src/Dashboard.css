@@ -175,7 +175,7 @@ html a[target="_blank"]:after {
 
 .image-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4 images per row */
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* 4 images per row */
   gap: 15px;
   padding: 15px;
 }

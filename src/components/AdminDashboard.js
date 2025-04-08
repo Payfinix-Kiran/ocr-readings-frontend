@@ -22,6 +22,10 @@ export default function Dashboard() {
     setTotalPages(Math.ceil(images.length / imagesPerPage));
   }, [images, imagesPerPage]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
+
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
   };
@@ -51,43 +55,52 @@ export default function Dashboard() {
 
       setTotalImages(imageFiles.length);
 
-      // Split into chunks of 12
       const chunkSize = 12;
       const chunks = [];
       for (let i = 0; i < imageFiles.length; i += chunkSize) {
         chunks.push(imageFiles.slice(i, i + chunkSize));
       }
 
-      // Upload each mini-ZIP chunk
-      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-        const chunk = chunks[chunkIndex];
-
+      // Function to upload a single chunk zip
+      const uploadChunk = async (chunk, index) => {
         const chunkZip = new JSZip();
-        chunk.forEach((entry) => {
-          chunkZip.file(entry.name, entry.async("blob"));
-        });
+
+        // Load all files into this chunk zip
+        await Promise.all(
+          chunk.map(async (entry) => {
+            const blob = await entry.async("blob");
+            chunkZip.file(entry.name, blob);
+          })
+        );
 
         const blobContent = await chunkZip.generateAsync({ type: "blob" });
         const chunkFormData = new FormData();
-        const chunkFileName = `chunk_${chunkIndex + 1}.zip`;
+        const chunkFileName = `chunk_${index + 1}.zip`;
+
         chunkFormData.append(
           "file",
           new File([blobContent], chunkFileName, { type: "application/zip" })
         );
 
-        const response = await uploadImages(chunkFormData, "upload-images");
-        const chunkResults = (await response?.data?.results) || [];
+        try {
+          const response = await uploadImages(chunkFormData, "upload-images");
+          const chunkResults = response?.data?.results || [];
+          setImages((prev) => [...prev, ...chunkResults]);
+          setProcessedCount((prev) => prev + chunk.length);
+        } catch (error) {
+          console.error(`Error uploading chunk ${index + 1}:`, error);
+        }
+      };
 
-        setImages((prev) => [...prev, ...chunkResults]);
-        setProcessedCount((prev) => prev + chunk.length); // Append results
-      }
+      // Upload all chunks in parallel
+      await Promise.allSettled(
+        chunks.map((chunk, index) => uploadChunk(chunk, index))
+      );
     } catch (error) {
       console.error("Error uploading file:", error);
       alert("Upload failed. Please check your file and try again.");
     } finally {
       setLoading(false);
-      // setProcessedCount(0);
-      // setTotalImages(0);
       setFile(null);
     }
   };
@@ -150,39 +163,44 @@ export default function Dashboard() {
 
   const convertToExcelData = () => {
     const excelData = images.map((image) => {
+      const reading1 = image?.ocr_reading_result_1?.reading_1 || "";
+      const confidence1 = image?.ocr_reading_result_1?.confidence_1 || "";
+
+      const reading2 = image?.ocr_reading_result_2?.reading_2 || "";
+      const confidence2 = image?.ocr_reading_result_2?.confidence_2 || "";
+      const readingLabel = image?.ocr_reading_result_2?.label || "";
+
+      const isValidReading2 =
+        reading2 !== "NOT_FOUND" &&
+        reading2 !== reading1 &&
+        /^\d{1,8}$/.test(reading2);
+
       return {
-        "Image URL": image.image_url,
+        "Image URL": image?.image_url,
         "Serial Number Reading":
-          image.serial_number_result.reading === "NOT_FOUND"
+          image?.serial_number_result?.reading === "NOT_FOUND"
             ? ""
-            : image.serial_number_result.reading,
-        "Meter Reading 1":
-          image.ocr_reading_result_1.reading_1 === "NOT_FOUND"
-            ? ""
-            : image.ocr_reading_result_1.reading_1,
+            : image?.serial_number_result?.reading || "",
+        "Meter Reading 1": reading1 === "NOT_FOUND" ? "" : reading1,
         "Confidence Score 1":
-          image.ocr_reading_result_1.confidence_1 === "N/A"
+           formatConfidence(confidence1) === "N/A" ||  formatConfidence(confidence1) === "NOT_FOUND"
             ? ""
-            : image.ocr_reading_result_1.confidence_1,
-        "Meter Reading 2":
-          image.ocr_reading_result_2.reading_2 === "NOT_FOUND"
-            ? ""
-            : image.ocr_reading_result_2.reading_2,
+            :  formatConfidence(confidence1),
+        "Meter Reading 2": isValidReading2 ? reading2 : "",
         "Confidence Score 2":
-          image.ocr_reading_result_2.confidence_2 === "NOT_FOUND"
-            ? ""
-            : image.ocr_reading_result_2.confidence_2,
+          isValidReading2 &&
+          confidence2 !== "NOT_FOUND" &&
+          formatConfidence(confidence2) !== "N/A"
+            ? formatConfidence(confidence2)
+            : "",
         "Parameter Detected":
-          image.ocr_reading_result_2.label === "UNKNOWN" ||
-          image.ocr_reading_result_2.label === ""
-            ? ""
-            : image.ocr_reading_result_2.label,
-        "Spoof Confidence Score": image.spoof_result.confidence_score,
-        "Spoof Result": image.spoof_result.result,
-        "Spoof Reason": image.spoof_result.reason,
-        // Add more fields as needed
+          readingLabel === "UNKNOWN" || readingLabel === "" ? "" : readingLabel,
+        "Spoof Confidence Score": image?.spoof_result?.confidence_score || "",
+        "Spoof Result": image?.spoof_result?.result || "",
+        "Spoof Reason": image?.spoof_result?.reason || "",
       };
     });
+
     return excelData;
   };
 
@@ -283,16 +301,6 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* {loading && totalImages > 0 && (
-        <div className="modal">
-          <div className="modal-content">
-            <div className="modal-message">
-              Images are processing please wait...
-            </div>
-          </div>
-        </div>
-      )} */}
-
       {modalImage && (
         <div className="modal">
           <div className="modal-content">
@@ -330,76 +338,84 @@ export default function Dashboard() {
           ) : (
             currentImages.map((image) => (
               <div
-                key={image.image_url || "singleImage"}
+                key={image?.image_url || "singleImage"}
                 className="image-card"
               >
                 {" "}
                 {/* Dynamic Key */}
                 <img
-                  src={image.image_url}
+                  src={image?.image_url}
                   alt="Uploaded"
                   className="image-thumbnail"
                   onClick={() => setModalImage(image)}
                 />
-                <div className="image-details">
-                  {/* Meter Reading */}
-                  <p>
-                    <span className="detail-label">Meter Reading 1:</span>{" "}
-                    {image.ocr_reading_result_1.reading_1 !== "NOT_FOUND" &&
-                    formatConfidence(
-                      image.ocr_reading_result_1.confidence_1
-                    ) !== "N/A"
-                      ? `${
-                          image.ocr_reading_result_1.reading_1
-                        } (${formatConfidence(
-                          image.ocr_reading_result_1.confidence_1
-                        )})`
-                      : ""}
-                  </p>
+                {image?.ocr_reading_result_1 && image?.ocr_reading_result_2 && (
+                  <div className="image-details">
+                    {/* Meter Reading 1 */}
+                    <p>
+                      <span className="detail-label">Meter Reading 1:</span>{" "}
+                      {image?.ocr_reading_result_1?.reading_1 !== "NOT_FOUND" &&
+                      formatConfidence(
+                        image?.ocr_reading_result_1?.confidence_1
+                      ) !== "N/A"
+                        ? `${
+                            image.ocr_reading_result_1?.reading_1
+                          } (${formatConfidence(
+                            image.ocr_reading_result_1?.confidence_1
+                          )})`
+                        : ""}
+                    </p>
 
-                  <p>
-                    <span className="detail-label">Meter Reading 2:</span>{" "}
-                    {image.ocr_reading_result_2.reading_2 !== "NOT_FOUND" &&
-                    formatConfidence(
-                      image.ocr_reading_result_2.confidence_2
-                    ) !== "N/A"
-                      ? `${
-                          image.ocr_reading_result_2.reading_2
-                        } (${formatConfidence(
-                          image.ocr_reading_result_2.confidence_2
-                        )})`
-                      : ""}
-                  </p>
+                    {/* Meter Reading 2 */}
+                    <p>
+                      <span className="detail-label">Meter Reading 2:</span>{" "}
+                      {image?.ocr_reading_result_2?.reading_2 !== "NOT_FOUND" &&
+                      image?.ocr_reading_result_2?.reading_2 !==
+                        image?.ocr_reading_result_1?.reading_1 &&
+                      image?.ocr_reading_result_2?.reading_2?.length <= 8 &&
+                      formatConfidence(
+                        image?.ocr_reading_result_2?.confidence_2
+                      ) !== "N/A"
+                        ? `${
+                            image?.ocr_reading_result_2?.reading_2
+                          } (${formatConfidence(
+                            image?.ocr_reading_result_2?.confidence_2
+                          )})`
+                        : ""}
+                    </p>
 
-                  {/* Meter Serial Number */}
-                  <p>
-                    <span className="detail-label">Parameter:</span>{" "}
-                    {image.ocr_reading_result_2.label !== "UNKNOWN"
-                      ? image.ocr_reading_result_2.label
-                      : ""}
-                  </p>
-                  <p>
-                    <span className="detail-label">Meter Serial:</span>{" "}
-                    {image.serial_number_result.reading !== "NOT_FOUND"
-                      ? image.serial_number_result.reading
-                      : ""}
-                  </p>
+                    {/* Parameter */}
+                    <p>
+                      <span className="detail-label">Parameter:</span>{" "}
+                      {image?.ocr_reading_result_2?.label !== "UNKNOWN"
+                        ? image?.ocr_reading_result_2?.label
+                        : ""}
+                    </p>
 
-                  {/* Is Image a Spoof */}
-                  <p>
-                    <span className="detail-label">Is Image a Spoof:</span>{" "}
-                    {image.spoof_result.result === "Spoofed"
-                      ? `Yes (${image.spoof_result.confidence_score}%)`
-                      : `No (${image.spoof_result.confidence_score}%)`}
-                  </p>
-                </div>
+                    {/* Meter Serial */}
+                    <p>
+                      <span className="detail-label">Meter Serial:</span>{" "}
+                      {image?.serial_number_result?.reading !== "NOT_FOUND"
+                        ? image?.serial_number_result?.reading
+                        : ""}
+                    </p>
+
+                    {/* Spoof Detection */}
+                    <p>
+                      <span className="detail-label">Is Image a Spoof:</span>{" "}
+                      {image?.spoof_result?.result === "Spoofed"
+                        ? `Yes (${image.spoof_result.confidence_score}%)`
+                        : `No (${image?.spoof_result?.confidence_score}%)`}
+                    </p>
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
         <Pagination
           imagesPerPage={imagesPerPage}
-          totalImages={images.length}
+          totalImages={images?.length}
           paginate={paginate}
           currentPage={currentPage}
           totalPages={totalPages} // Pass totalPages
@@ -422,48 +438,124 @@ const Pagination = ({
   currentPage,
   totalPages,
 }) => {
-  const pageNumbers = [];
+  const getPageNumbers = () => {
+    const maxVisible = 5;
+    const pages = [];
 
-  for (let i = 1; i <= Math.ceil(totalImages / imagesPerPage); i++) {
-    pageNumbers.push(i);
-  }
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(
+          1,
+          '...',
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages
+        );
+      } else {
+        pages.push(
+          1,
+          '...',
+          currentPage - 1,
+          currentPage,
+          currentPage + 1,
+          '...',
+          totalPages
+        );
+      }
+    }
+
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
 
   return (
-    <nav>
-      <ul className="pagination">
-        <li className="page-item">
-          <a
-            onClick={() =>
-              paginate(currentPage > 1 ? currentPage - 1 : currentPage)
-            }
-            href="#"
+    <nav className="pagination-container" style={{ marginTop: "20px", textAlign: "center" }}>
+      <ul className="pagination" style={{ display: "inline-flex", listStyle: "none", padding: 0 }}>
+        {/* Previous */}
+        <li
+          className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
+          style={{ margin: "0 4px" }}
+        >
+          <button
+            onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
             className="page-link"
+            style={{
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #ccc",
+              backgroundColor: "#f0f0f0",
+              cursor: currentPage === 1 ? "not-allowed" : "pointer",
+            }}
+            disabled={currentPage === 1}
           >
             Previous
-          </a>
+          </button>
         </li>
-        {pageNumbers.map((number) => (
-          <li
-            key={number}
-            className={`page-item ${currentPage === number ? "active" : ""}`}
-          >
-            <a onClick={() => paginate(number)} href="#" className="page-link">
-              {number}
-            </a>
-          </li>
-        ))}
-        <li className="page-item">
-          <a
+
+        {/* Page Numbers */}
+        {pageNumbers.map((number, index) =>
+          number === "..." ? (
+            <li key={`ellipsis-${index}`} className="page-item" style={{ margin: "0 4px" }}>
+              <span className="page-link" style={{ padding: "8px 12px" }}>...</span>
+            </li>
+          ) : (
+            <li
+              key={number}
+              className={`page-item ${currentPage === number ? "active" : ""}`}
+              style={{ margin: "0 4px" }}
+            >
+              <button
+                onClick={() => paginate(number)}
+                className="page-link"
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #ccc",
+                  backgroundColor: currentPage === number ? "#007bff" : "#fff",
+                  color: currentPage === number ? "#fff" : "#333",
+                  fontWeight: currentPage === number ? "bold" : "normal",
+                  cursor: "pointer",
+                }}
+              >
+                {number}
+              </button>
+            </li>
+          )
+        )}
+
+        {/* Next */}
+        <li
+          className={`page-item ${currentPage === totalPages || totalPages === 0 ? "disabled" : ""}`}
+          style={{ margin: "0 4px" }}
+        >
+          <button
             onClick={() =>
-              paginate(currentPage < totalPages ? currentPage + 1 : currentPage)
+              paginate(currentPage < totalPages ? currentPage + 1 : totalPages)
             }
-            href="#"
             className="page-link"
+            style={{
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #ccc",
+              backgroundColor: "#f0f0f0",
+              cursor:
+                currentPage === totalPages || totalPages === 0
+                  ? "not-allowed"
+                  : "pointer",
+            }}
+            disabled={currentPage === totalPages || totalPages === 0}
           >
             Next
-          </a>
+          </button>
         </li>
       </ul>
     </nav>
   );
 };
+
