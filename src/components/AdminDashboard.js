@@ -183,9 +183,10 @@ export default function Dashboard() {
             : image?.serial_number_result?.reading || "",
         "Meter Reading 1": reading1 === "NOT_FOUND" ? "" : reading1,
         "Confidence Score 1":
-           formatConfidence(confidence1) === "N/A" ||  formatConfidence(confidence1) === "NOT_FOUND"
+          formatConfidence(confidence1) === "N/A" ||
+          formatConfidence(confidence1) === "NOT_FOUND"
             ? ""
-            :  formatConfidence(confidence1),
+            : formatConfidence(confidence1),
         "Meter Reading 2": isValidReading2 ? reading2 : "",
         "Confidence Score 2":
           isValidReading2 &&
@@ -194,7 +195,11 @@ export default function Dashboard() {
             ? formatConfidence(confidence2)
             : "",
         "Parameter Detected":
-          readingLabel === "UNKNOWN" || readingLabel === "" ? "" : readingLabel,
+          readingLabel === "UNKNOWN" ||
+          readingLabel === "" ||
+          readingLabel === "none"
+            ? ""
+            : readingLabel,
         "Spoof Confidence Score": image?.spoof_result?.confidence_score || "",
         "Spoof Result": image?.spoof_result?.result || "",
         "Spoof Reason": image?.spoof_result?.reason || "",
@@ -365,7 +370,6 @@ export default function Dashboard() {
                           )})`
                         : ""}
                     </p>
-
                     {/* Meter Reading 2 */}
                     <p>
                       <span className="detail-label">Meter Reading 2:</span>{" "}
@@ -383,15 +387,14 @@ export default function Dashboard() {
                           )})`
                         : ""}
                     </p>
-
                     {/* Parameter */}
                     <p>
                       <span className="detail-label">Parameter:</span>{" "}
-                      {image?.ocr_reading_result_2?.label !== "UNKNOWN"
+                      {image?.ocr_reading_result_2?.label !== "none" &&
+                      image?.ocr_reading_result_2?.label !== "UNKNOWN"
                         ? image?.ocr_reading_result_2?.label
                         : ""}
                     </p>
-
                     {/* Meter Serial */}
                     <p>
                       <span className="detail-label">Meter Serial:</span>{" "}
@@ -399,7 +402,6 @@ export default function Dashboard() {
                         ? image?.serial_number_result?.reading
                         : ""}
                     </p>
-
                     {/* Spoof Detection */}
                     <p>
                       <span className="detail-label">Is Image a Spoof:</span>{" "}
@@ -446,11 +448,11 @@ const Pagination = ({
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       if (currentPage <= 3) {
-        pages.push(1, 2, 3, 4, '...', totalPages);
+        pages.push(1, 2, 3, 4, "...", totalPages);
       } else if (currentPage >= totalPages - 2) {
         pages.push(
           1,
-          '...',
+          "...",
           totalPages - 3,
           totalPages - 2,
           totalPages - 1,
@@ -459,11 +461,11 @@ const Pagination = ({
       } else {
         pages.push(
           1,
-          '...',
+          "...",
           currentPage - 1,
           currentPage,
           currentPage + 1,
-          '...',
+          "...",
           totalPages
         );
       }
@@ -475,8 +477,14 @@ const Pagination = ({
   const pageNumbers = getPageNumbers();
 
   return (
-    <nav className="pagination-container" style={{ marginTop: "20px", textAlign: "center" }}>
-      <ul className="pagination" style={{ display: "inline-flex", listStyle: "none", padding: 0 }}>
+    <nav
+      className="pagination-container"
+      style={{ marginTop: "20px", textAlign: "center" }}
+    >
+      <ul
+        className="pagination"
+        style={{ display: "inline-flex", listStyle: "none", padding: 0 }}
+      >
         {/* Previous */}
         <li
           className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
@@ -501,8 +509,14 @@ const Pagination = ({
         {/* Page Numbers */}
         {pageNumbers.map((number, index) =>
           number === "..." ? (
-            <li key={`ellipsis-${index}`} className="page-item" style={{ margin: "0 4px" }}>
-              <span className="page-link" style={{ padding: "8px 12px" }}>...</span>
+            <li
+              key={`ellipsis-${index}`}
+              className="page-item"
+              style={{ margin: "0 4px" }}
+            >
+              <span className="page-link" style={{ padding: "8px 12px" }}>
+                ...
+              </span>
             </li>
           ) : (
             <li
@@ -531,7 +545,9 @@ const Pagination = ({
 
         {/* Next */}
         <li
-          className={`page-item ${currentPage === totalPages || totalPages === 0 ? "disabled" : ""}`}
+          className={`page-item ${
+            currentPage === totalPages || totalPages === 0 ? "disabled" : ""
+          }`}
           style={{ margin: "0 4px" }}
         >
           <button
@@ -558,4 +574,3 @@ const Pagination = ({
     </nav>
   );
 };
-
